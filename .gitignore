@@ -1,0 +1,24 @@
+# Dataset — too large for GitHub
+dataset/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Training artifacts (keep model files but not checkpoints)
+training/__pycache__/
+*.pth
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# VS Code / Antigravity
+.vscode/
+
+# Environment
+.env
+venv/
+env/
