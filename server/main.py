@@ -19,9 +19,13 @@ session = ort.InferenceSession("rice_pest_model.onnx")
 
 CLASS_NAMES = {
     0: "Asiatic Rice Borer",
-    1: "Paddy Stem Maggot",
-    2: "Rice Leaf Caterpillar",
-    3: "Rice Leaf Roller"
+    1: "Brown Plant Hopper",
+    2: "Paddy Stem Maggot",
+    3: "Rice Leaf Caterpillar",
+    4: "Rice Leaf Hopper",
+    5: "Rice Leaf Roller",
+    6: "Thrips",
+    7: "Yellow Rice Borer"
 }
 
 def preprocess(image_bytes):
@@ -59,7 +63,7 @@ async def analyze(file: UploadFile = File(...)):
         "confidence": round(confidence, 2),
         "all_scores": {
             CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
-            for i in range(4)
+            for i in range(len(CLASS_NAMES))
         }
     }
     
