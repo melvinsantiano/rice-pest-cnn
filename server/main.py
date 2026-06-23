@@ -4,6 +4,9 @@ import onnxruntime as ort
 import numpy as np
 from PIL import Image
 import io
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI()
 
@@ -15,17 +18,22 @@ app.add_middleware(
 )
 
 # Load model once when server starts
-session = ort.InferenceSession("rice_pest_model.onnx")
+session = ort.InferenceSession(str(BASE_DIR / "rice_pest_model.onnx"))
 
 CLASS_NAMES = {
-    0: "Asiatic Rice Borer",
-    1: "Brown Plant Hopper",
-    2: "Paddy Stem Maggot",
-    3: "Rice Leaf Caterpillar",
-    4: "Rice Leaf Hopper",
-    5: "Rice Leaf Roller",
-    6: "Thrips",
-    7: "Yellow Rice Borer"
+    0: "Army Worm",
+    1: "Asiatic Rice Borer",
+    2: "Brown Plant Hopper",
+    3: "Paddy Stem Maggot",
+    4: "Rice Gall Midge",
+    5: "Rice Leaf Caterpillar",
+    6: "Rice Leaf Hopper",
+    7: "Rice Leaf Roller",
+    8: "Rice Shell Pest",
+    9: "Rice Water Weevil",
+    10: "Thrips",
+    11: "White Backed Plant Hopper",
+    12: "Yellow Rice Borer"
 }
 
 def preprocess(image_bytes):
