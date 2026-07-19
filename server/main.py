@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Request, HTTPException
+from fastapi import FastAPI, File, UploadFile, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import onnxruntime as ort
@@ -9,8 +9,17 @@ import os
 import sqlite3
 import json
 import uuid
+import asyncio
 from datetime import datetime
 from pathlib import Path
+
+async def delete_file_later(filepath: str, delay: int = 30):
+    await asyncio.sleep(delay)
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except OSError:
+        pass
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -103,8 +112,12 @@ async def analyze(file: UploadFile = File(...)):
     pred_idx = int(np.argmax(probs))
     confidence = float(probs[pred_idx]) * 100
 
+    pest_name = CLASS_NAMES[pred_idx]
+    if confidence < 80:
+        pest_name = "No Pest Detected"
+
     return {
-        "pest": CLASS_NAMES[pred_idx],
+        "pest": pest_name,
         "confidence": round(confidence, 2),
         "all_scores": {
             CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
@@ -134,6 +147,15 @@ async def predict(request: Request):
     pred_idx = int(np.argmax(probs))
     confidence = float(probs[pred_idx]) * 100
     pest_name = CLASS_NAMES[pred_idx]
+
+    # If confidence is below 80%, discard the image and return early without saving
+    if confidence < 80:
+        return {
+            "status": "discarded",
+            "message": "Confidence below threshold (80%). Image discarded.",
+            "pest": pest_name,
+            "confidence": round(confidence, 2)
+        }
 
     # Save physical file to static server directory
     timestamp_str = datetime.utcnow().isoformat()
@@ -178,7 +200,7 @@ async def predict(request: Request):
 
 # ── 3. Mobile Sync Endpoint ──
 @app.get("/detections/{serial}")
-def get_detections(serial: str):
+async def get_detections(serial: str, background_tasks: BackgroundTasks):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -189,7 +211,6 @@ def get_detections(serial: str):
         ORDER BY timestamp DESC
     ''', (serial,))
     rows = c.fetchall()
-    conn.close()
 
     results = []
     for row in rows:
@@ -202,4 +223,17 @@ def get_detections(serial: str):
             "timestamp": row["timestamp"],
             "image_url": f"/static/detections/{row['image_filename']}"
         })
+        
+        # Schedule physical file deletion to allow the client to download the image first
+        filename = row["image_filename"]
+        if filename:
+            file_path = str(DETECTIONS_DIR / filename)
+            background_tasks.add_task(delete_file_later, file_path, 30)
+
+    # Delete database records immediately so they won't be sent again
+    if len(rows) > 0:
+        c.execute('DELETE FROM detections WHERE device_serial = ?', (serial,))
+        conn.commit()
+
+    conn.close()
     return results
