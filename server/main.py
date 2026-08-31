@@ -69,16 +69,17 @@ CLASS_NAMES = {
     0: "Army Worm",
     1: "Asiatic Rice Borer",
     2: "Brown Plant Hopper",
-    3: "Paddy Stem Maggot",
-    4: "Rice Gall Midge",
-    5: "Rice Leaf Caterpillar",
-    6: "Rice Leaf Hopper",
-    7: "Rice Leaf Roller",
-    8: "Rice Shell Pest",
-    9: "Rice Water Weevil",
-    10: "Thrips",
-    11: "White Backed Plant Hopper",
-    12: "Yellow Rice Borer"
+    3: "Golden Apple Snail",
+    4: "Paddy Stem Maggot",
+    5: "Rice Gall Midge",
+    6: "Rice Leaf Caterpillar",
+    7: "Rice Leaf Hopper",
+    8: "Rice Leaf Roller",
+    9: "Rice Shell Pest",
+    10: "Rice Water Weevil",
+    11: "Thrips",
+    12: "White Backed Plant Hopper",
+    13: "Yellow Rice Borer"
 }
 
 def preprocess(image_bytes):
