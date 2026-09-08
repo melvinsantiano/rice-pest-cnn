@@ -82,6 +82,14 @@ CLASS_NAMES = {
     13: "Yellow Rice Borer"
 }
 
+CONFIDENCE_THRESHOLD = 60.0
+
+EXCLUDED_PESTS = {
+    "Brown Plant Hopper",
+    "Rice Shell Pest",
+    "White Backed Plant Hopper"
+}
+
 def preprocess(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = img.resize((224, 224))
@@ -114,16 +122,19 @@ async def analyze(file: UploadFile = File(...)):
     confidence = float(probs[pred_idx]) * 100
 
     pest_name = CLASS_NAMES[pred_idx]
-    if confidence < 80:
+    if confidence < CONFIDENCE_THRESHOLD or pest_name in EXCLUDED_PESTS:
         pest_name = "No Pest Detected"
+
+    active_scores = {
+        CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
+        for i in range(len(CLASS_NAMES))
+        if CLASS_NAMES[i] not in EXCLUDED_PESTS
+    }
 
     return {
         "pest": pest_name,
         "confidence": round(confidence, 2),
-        "all_scores": {
-            CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
-            for i in range(len(CLASS_NAMES))
-        }
+        "all_scores": active_scores
     }
 
 # ── 2. ESP32 Raw Upload Endpoint ──
@@ -149,12 +160,12 @@ async def predict(request: Request):
     confidence = float(probs[pred_idx]) * 100
     pest_name = CLASS_NAMES[pred_idx]
 
-    # If confidence is below 80%, discard the image and return early without saving
-    if confidence < 80:
+    # If confidence is below threshold or pest is excluded, discard the image and return early
+    if confidence < CONFIDENCE_THRESHOLD or pest_name in EXCLUDED_PESTS:
         return {
             "status": "discarded",
-            "message": "Confidence below threshold (80%). Image discarded.",
-            "pest": pest_name,
+            "message": f"Confidence below threshold ({CONFIDENCE_THRESHOLD}%) or excluded pest. Image discarded.",
+            "pest": pest_name if pest_name not in EXCLUDED_PESTS else "Excluded Pest",
             "confidence": round(confidence, 2)
         }
 
@@ -170,6 +181,7 @@ async def predict(request: Request):
     all_scores_json = json.dumps({
         CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
         for i in range(len(CLASS_NAMES))
+        if CLASS_NAMES[i] not in EXCLUDED_PESTS
     })
 
     conn = sqlite3.connect(DB_PATH)

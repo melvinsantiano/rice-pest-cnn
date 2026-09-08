@@ -5,75 +5,69 @@ This repository contains the backend and machine learning infrastructure for the
 ---
 
 ## 🛠️ Technology Stack
-* **Machine Learning:** PyTorch, MobileNetV3 (Transfer Learning)
+* **Machine Learning:** PyTorch, MobileNetV3 (Transfer Learning & Fine-Tuning)
 * **Model Format:** ONNX (Open Neural Network Exchange)
 * **Backend Server:** Python, FastAPI, Uvicorn, ONNX Runtime
 * **Deployment:** GitHub, Render (Cloud Platform)
 
 ---
 
-## 📖 Phase 1: How We Built the CNN Model
-The model was trained entirely on Google Colab using a free T4 GPU to ensure fast training times.
+## 🌾 Supported Pest Classes (11 Active Classes)
+The system supports classification and detection for 11 rice pest species:
+1. **Army Worm** (`army_worm`)
+2. **Asiatic Rice Borer** (`asiatic_rice_borer`)
+3. **Golden Apple Snail** (`golden_apple_snail`)
+4. **Paddy Stem Maggot** (`paddy_stem_maggot`)
+5. **Rice Gall Midge** (`rice_gall_midge`)
+6. **Rice Leaf Caterpillar** (`rice_leaf_caterpillar`)
+7. **Rice Leaf Hopper** (`rice_leaf_hopper`)
+8. **Rice Leaf Roller** (`rice_leaf_roller`)
+9. **Rice Water Weevil** (`rice_water_weevil`)
+10. **Thrips** (`thrips`)
+11. **Yellow Rice Borer** (`yellow_rice_borer`)
 
-1. **Dataset Organization:** 
-   * Collected 2,150 images across 4 classes: Asiatic Rice Borer, Paddy Stem Maggot, Rice Leaf Caterpillar, and Rice Leaf Roller.
-   * Formatted and normalized all filenames.
-2. **Data Augmentation (Fixing Imbalance):**
-   * The initial dataset was imbalanced (ranging from 325 to 745 images per class). 
-   * We wrote an augmentation script (rotating, flipping, adjusting brightness) to generate extra images for the minority classes until all 4 classes had exactly **700 images** in the training set.
+*(Note: `brown_plant_hopper`, `rice_shell_pest`, and `white_backed_plant_hopper` are filtered/excluded from active detections.)*
+
+---
+
+## 📖 Phase 1: How We Built the Enhanced CNN Model
+The model was trained on Google Colab using GPU acceleration for fast training and convergence.
+
+1. **Dataset Organization & Preprocessing:** 
+   * Standardized to 224x224 RGB inputs with ImageNet normalization:
+     - Mean: `[0.485, 0.456, 0.406]`
+     - Std: `[0.229, 0.224, 0.225]`
+2. **Data Augmentation:**
+   * Utilized random horizontal flipping, rotation (-25° to +25°), brightness adjustment (0.7 to 1.3), and contrast enhancement to balance minority classes and prevent overfitting.
 3. **Training Strategy:**
-   * Used **MobileNetV3**, pre-trained on ImageNet. This is highly efficient for mobile/IoT use-cases.
-   * Modified the final classifier layer to output exactly 4 classes.
-   * Trained for 20 Epochs using the Adam optimizer.
-4. **Evaluation:**
-   * The model achieved a **99.08% Test Accuracy**.
-   * Out of 327 unseen test images, only 3 were misclassified.
-5. **ONNX Export:**
-   * Exported the `.pth` PyTorch model into a single self-contained `.onnx` file (approx. 6MB) so the server can run predictions without needing the heavy PyTorch library.
+   * Used **MobileNetV3**, pre-trained on ImageNet for lightweight and low-latency inference on mobile & edge IoT devices.
+   * Optimized with Adam optimizer and learning rate scheduling (`StepLR`).
+4. **ONNX Export:**
+   * Exported to a self-contained ONNX model (`rice_pest_model.onnx`) with dynamic batching support `[batch_size, 3, 224, 224] -> [batch_size, 14]`, eliminating the heavy PyTorch runtime dependency in production.
 
 ---
 
 ## 🌐 Phase 2: The Server and Deployment
-Instead of placing the AI inside the mobile app, we hosted it as a Cloud API. This keeps the mobile app lightweight and allows ESP32 IoT cameras to use the exact same AI.
+Instead of running heavy models on mobile or edge devices, inference is served via a Cloud API. This allows lightweight mobile clients and ESP32 IoT camera nodes to access real-time inference.
 
-1. **FastAPI Backend:**
-   * We built a `main.py` server using FastAPI.
-   * The server loads the `.onnx` model into memory once upon startup via `onnxruntime`.
-   * It exposes a `POST /analyze` endpoint that accepts image files, preprocesses them (resize to 224x224, normalize), runs the inference, and returns JSON.
+1. **FastAPI Backend (`server/main.py`):**
+   * Loads `rice_pest_model.onnx` into memory on startup via `onnxruntime.InferenceSession`.
+   * **`POST /analyze`**: Accepts multipart image uploads (e.g. from mobile app), runs inference, and returns predicted pest, confidence percentage, and active pest scores (filtered with a **60% threshold**).
+   * **`POST /predict`**: Accepts raw binary image bytes from ESP32 IoT cameras, applies **60% confidence threshold** and active pest gating, stores records in SQLite (`detections.db`), and saves detection images to `static/detections/`.
+   * **`GET /detections/{serial}`**: Mobile sync endpoint that fetches detections for a specific device serial and schedules automatic file cleanup.
 2. **Local Testing:**
-   * Validated locally using `uvicorn main:app --reload`.
+   * Run server locally:
+     ```bash
+     cd server
+     uvicorn main:app --reload
+     ```
 3. **Cloud Deployment (Render):**
-   * Pushed the code to GitHub.
-   * Linked the repository to **Render (Free Tier)**.
-   * Render automatically installs dependencies from `requirements.txt` (using Python 3.11 specified in `runtime.txt`) and launches the web service.
+   * Push updates to GitHub repository.
+   * Render automatically installs dependencies from `requirements.txt` (using Python specified in `runtime.txt`) and launches the web service.
 
 ---
 
-## 🚀 Future Upgrades: How to Update the CNN
-When you gather a new dataset (e.g., adding a 5th pest like "Brown Planthopper", or just adding 1,000 new images to improve accuracy), follow these steps to upgrade the server safely:
-
-### 1. Update the Dataset & Colab
-1. Upload the new images to the `dataset` folder in your Google Drive.
-2. Open the `training/train.ipynb` notebook in Google Colab.
-3. Re-run the cells:
-   * The augmentation cell will automatically balance the new images.
-   * If you added a **5th class**, change the final layer from `4` to `5` in the Colab code (`nn.Linear(..., 5)`).
-4. Re-train the model until you get high validation accuracy.
-5. Re-run the ONNX export cell to generate a new `rice_pest_model.onnx`.
-
-### 2. Update the Server Code
-1. Download the new `rice_pest_model.onnx` from Google Drive.
-2. Replace the old `.onnx` file inside the `server/` folder on your laptop.
-3. Open `server/main.py`:
-   * If you added a new pest class, update the `CLASS_NAMES` dictionary to include the new ID and name.
-   * If you only added images to existing classes, you don't need to change any Python code!
-4. Test locally using `uvicorn` to ensure it works.
-
-### 3. Push to Production
-1. Open terminal and run:
-   ```bash
-   git add .
-   git commit -m "Upgrade: Retrained CNN model with new dataset"
-   git push
-   ```
-2. Render will detect the GitHub push, automatically download the new `.onnx` file, and restart the server with the new, smarter AI. No app store updates required for your users!
+## 🚀 How to Update the Model in the Future
+1. Place the new `rice_pest_model.onnx` into both `model/` and `server/` directories.
+2. If new pest classes are introduced, verify that `CLASS_NAMES` in `server/main.py` matches the alphabetical order of the dataset class folders.
+3. Commit and push changes to GitHub. Render will rebuild and deploy the new model automatically.
