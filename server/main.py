@@ -82,7 +82,7 @@ CLASS_NAMES = {
     13: "Yellow Rice Borer"
 }
 
-CONFIDENCE_THRESHOLD = 60.0
+CONFIDENCE_THRESHOLD = 50.0
 
 EXCLUDED_PESTS = {
     "Brown Plant Hopper",
