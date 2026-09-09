@@ -68,27 +68,18 @@ session = ort.InferenceSession(str(BASE_DIR / "rice_pest_model.onnx"))
 CLASS_NAMES = {
     0: "Army Worm",
     1: "Asiatic Rice Borer",
-    2: "Brown Plant Hopper",
-    3: "Golden Apple Snail",
-    4: "Paddy Stem Maggot",
-    5: "Rice Gall Midge",
-    6: "Rice Leaf Caterpillar",
-    7: "Rice Leaf Hopper",
-    8: "Rice Leaf Roller",
-    9: "Rice Shell Pest",
-    10: "Rice Water Weevil",
-    11: "Thrips",
-    12: "White Backed Plant Hopper",
-    13: "Yellow Rice Borer"
+    2: "Golden Apple Snail",
+    3: "Paddy Stem Maggot",
+    4: "Rice Gall Midge",
+    5: "Rice Leaf Caterpillar",
+    6: "Rice Leaf Hopper",
+    7: "Rice Leaf Roller",
+    8: "Rice Water Weevil",
+    9: "Thrips",
+    10: "Yellow Rice Borer"
 }
 
 CONFIDENCE_THRESHOLD = 50.0
-
-EXCLUDED_PESTS = {
-    "Brown Plant Hopper",
-    "Rice Shell Pest",
-    "White Backed Plant Hopper"
-}
 
 def preprocess(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -122,19 +113,18 @@ async def analyze(file: UploadFile = File(...)):
     confidence = float(probs[pred_idx]) * 100
 
     pest_name = CLASS_NAMES[pred_idx]
-    if confidence < CONFIDENCE_THRESHOLD or pest_name in EXCLUDED_PESTS:
+    if confidence < CONFIDENCE_THRESHOLD:
         pest_name = "No Pest Detected"
 
-    active_scores = {
+    all_scores = {
         CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
         for i in range(len(CLASS_NAMES))
-        if CLASS_NAMES[i] not in EXCLUDED_PESTS
     }
 
     return {
         "pest": pest_name,
         "confidence": round(confidence, 2),
-        "all_scores": active_scores
+        "all_scores": all_scores
     }
 
 # ── 2. ESP32 Raw Upload Endpoint ──
@@ -160,12 +150,12 @@ async def predict(request: Request):
     confidence = float(probs[pred_idx]) * 100
     pest_name = CLASS_NAMES[pred_idx]
 
-    # If confidence is below threshold or pest is excluded, discard the image and return early
-    if confidence < CONFIDENCE_THRESHOLD or pest_name in EXCLUDED_PESTS:
+    # If confidence is below threshold, discard the image and return early
+    if confidence < CONFIDENCE_THRESHOLD:
         return {
             "status": "discarded",
-            "message": f"Confidence below threshold ({CONFIDENCE_THRESHOLD}%) or excluded pest. Image discarded.",
-            "pest": pest_name if pest_name not in EXCLUDED_PESTS else "Excluded Pest",
+            "message": f"Confidence below threshold ({CONFIDENCE_THRESHOLD}%). Image discarded.",
+            "pest": pest_name,
             "confidence": round(confidence, 2)
         }
 
@@ -181,7 +171,6 @@ async def predict(request: Request):
     all_scores_json = json.dumps({
         CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
         for i in range(len(CLASS_NAMES))
-        if CLASS_NAMES[i] not in EXCLUDED_PESTS
     })
 
     conn = sqlite3.connect(DB_PATH)
