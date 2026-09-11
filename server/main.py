@@ -70,13 +70,14 @@ CLASS_NAMES = {
     1: "Asiatic Rice Borer",
     2: "Golden Apple Snail",
     3: "Paddy Stem Maggot",
-    4: "Rice Gall Midge",
-    5: "Rice Leaf Caterpillar",
-    6: "Rice Leaf Hopper",
-    7: "Rice Leaf Roller",
-    8: "Rice Water Weevil",
-    9: "Thrips",
-    10: "Yellow Rice Borer"
+    4: "Rice Bugs",
+    5: "Rice Gall Midge",
+    6: "Rice Leaf Caterpillar",
+    7: "Rice Leaf Hopper",
+    8: "Rice Leaf Roller",
+    9: "Rice Water Weevil",
+    10: "Thrips",
+    11: "Yellow Rice Borer"
 }
 
 CONFIDENCE_THRESHOLD = 50.0

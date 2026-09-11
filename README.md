@@ -12,19 +12,20 @@ This repository contains the backend and machine learning infrastructure for the
 
 ---
 
-## 🌾 Supported Pest Classes (11 Active Classes)
-The system supports classification and detection for 11 rice pest species:
+## 🌾 Supported Pest Classes (12 Active Classes)
+The system supports classification and detection for 12 rice pest species:
 1. **Army Worm** (`army_worm`)
 2. **Asiatic Rice Borer** (`asiatic_rice_borer`)
 3. **Golden Apple Snail** (`golden_apple_snail`)
 4. **Paddy Stem Maggot** (`paddy_stem_maggot`)
-5. **Rice Gall Midge** (`rice_gall_midge`)
-6. **Rice Leaf Caterpillar** (`rice_leaf_caterpillar`)
-7. **Rice Leaf Hopper** (`rice_leaf_hopper`)
-8. **Rice Leaf Roller** (`rice_leaf_roller`)
-9. **Rice Water Weevil** (`rice_water_weevil`)
-10. **Thrips** (`thrips`)
-11. **Yellow Rice Borer** (`yellow_rice_borer`)
+5. **Rice Bugs** (`rice_bugs`)
+6. **Rice Gall Midge** (`rice_gall_midge`)
+7. **Rice Leaf Caterpillar** (`rice_leaf_caterpillar`)
+8. **Rice Leaf Hopper** (`rice_leaf_hopper`)
+9. **Rice Leaf Roller** (`rice_leaf_roller`)
+10. **Rice Water Weevil** (`rice_water_weevil`)
+11. **Thrips** (`thrips`)
+12. **Yellow Rice Borer** (`yellow_rice_borer`)
 
 *(Note: `brown_plant_hopper`, `rice_shell_pest`, and `white_backed_plant_hopper` are filtered/excluded from active detections.)*
 
