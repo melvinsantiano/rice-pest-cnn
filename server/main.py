@@ -54,6 +54,12 @@ def init_db():
             last_updated TEXT
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stream_requests (
+            device_serial TEXT PRIMARY KEY,
+            requested_at TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -317,3 +323,59 @@ async def get_stream_url(serial: str):
         "status": status,
         "last_updated": row["last_updated"]
     }
+
+# ── 5. On-Demand Stream Request Endpoints ──
+@app.post("/devices/{serial}/request-stream")
+async def request_stream(serial: str):
+    now = datetime.now(timezone.utc).isoformat()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO stream_requests (device_serial, requested_at)
+        VALUES (?, ?)
+    ''', (serial, now))
+    conn.commit()
+    conn.close()
+    return {"status": "requested"}
+
+@app.get("/devices/{serial}/request-stream")
+async def check_stream_request(serial: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('''
+        SELECT device_serial, requested_at
+        FROM stream_requests
+        WHERE device_serial = ?
+    ''', (serial,))
+    row = c.fetchone()
+
+    if not row or not row["requested_at"]:
+        conn.close()
+        return {"requested": False}
+
+    requested = True
+    try:
+        req_str = row["requested_at"].replace("Z", "+00:00")
+        req_dt = datetime.fromisoformat(req_str)
+        if req_dt.tzinfo is None:
+            req_dt = req_dt.replace(tzinfo=timezone.utc)
+        # Auto-expire requests older than 2 minutes (120 seconds)
+        if datetime.now(timezone.utc) - req_dt > timedelta(minutes=2):
+            c.execute('DELETE FROM stream_requests WHERE device_serial = ?', (serial,))
+            conn.commit()
+            requested = False
+    except Exception:
+        pass
+
+    conn.close()
+    return {"requested": requested}
+
+@app.delete("/devices/{serial}/request-stream")
+async def clear_stream_request(serial: str):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('DELETE FROM stream_requests WHERE device_serial = ?', (serial,))
+    conn.commit()
+    conn.close()
+    return {"status": "cleared"}

@@ -54,6 +54,23 @@ async def get_stream_url(serial: str):
             "message": "Device has not registered a stream URL yet."
         }
     return info
+
+# Stream Request (On-Demand)
+stream_requests = {}
+
+@app.post("/devices/{serial}/request-stream")
+async def request_stream(serial: str):
+    stream_requests[serial] = datetime.now(timezone.utc).isoformat()
+    return {"status": "requested"}
+
+@app.get("/devices/{serial}/request-stream")
+async def check_stream_request(serial: str):
+    return {"requested": serial in stream_requests}
+
+@app.delete("/devices/{serial}/request-stream")
+async def clear_stream_request(serial: str):
+    stream_requests.pop(serial, None)
+    return {"status": "cleared"}
 """
 
 
@@ -65,6 +82,7 @@ from flask import request, jsonify
 from datetime import datetime, timezone
 
 device_streams = {}
+stream_requests = {}
 
 @app.route("/devices/<serial>/stream-url", methods=["POST"])
 def register_device_stream(serial):
@@ -97,4 +115,19 @@ def get_device_stream(serial):
             "message": "Device has not registered a stream URL yet."
         }), 200
     return jsonify(info), 200
+
+@app.route("/devices/<serial>/request-stream", methods=["POST"])
+def request_stream(serial):
+    stream_requests[serial] = datetime.now(timezone.utc).isoformat()
+    return jsonify({"status": "requested"}), 200
+
+@app.route("/devices/<serial>/request-stream", methods=["GET"])
+def check_stream_request(serial):
+    return jsonify({"requested": serial in stream_requests}), 200
+
+@app.route("/devices/<serial>/request-stream", methods=["DELETE"])
+def clear_stream_request(serial):
+    stream_requests.pop(serial, None)
+    return jsonify({"status": "cleared"}), 200
 """
+
