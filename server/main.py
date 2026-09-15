@@ -10,8 +10,10 @@ import sqlite3
 import json
 import uuid
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from typing import Optional
 from pathlib import Path
+from pydantic import BaseModel
 
 async def delete_file_later(filepath: str, delay: int = 30):
     await asyncio.sleep(delay)
@@ -42,6 +44,14 @@ def init_db():
             all_scores TEXT,
             image_filename TEXT,
             timestamp TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS device_streams (
+            device_serial TEXT PRIMARY KEY,
+            stream_url TEXT,
+            status TEXT,
+            last_updated TEXT
         )
     ''')
     conn.commit()
@@ -240,3 +250,70 @@ async def get_detections(serial: str, background_tasks: BackgroundTasks):
 
     conn.close()
     return results
+
+# ── 4. Device Live Stream Registration Endpoints ──
+class StreamUrlPayload(BaseModel):
+    stream_url: Optional[str] = None
+    status: Optional[str] = "online"
+    timestamp: Optional[str] = None
+
+@app.post("/devices/{serial}/stream-url")
+async def register_stream_url(serial: str, payload: StreamUrlPayload):
+    now = payload.timestamp or datetime.now(timezone.utc).isoformat()
+    status = payload.status or "online"
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO device_streams (device_serial, stream_url, status, last_updated)
+        VALUES (?, ?, ?, ?)
+    ''', (serial, payload.stream_url, status, now))
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "device_serial": serial,
+        "stream_url": payload.stream_url,
+        "last_updated": now
+    }
+
+@app.get("/devices/{serial}/stream-url")
+async def get_stream_url(serial: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('''
+        SELECT device_serial, stream_url, status, last_updated
+        FROM device_streams
+        WHERE device_serial = ?
+    ''', (serial,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return {
+            "device_serial": serial,
+            "stream_url": None,
+            "status": "offline",
+            "last_updated": None
+        }
+
+    status = row["status"] or "online"
+    if row["last_updated"]:
+        try:
+            updated_str = row["last_updated"].replace("Z", "+00:00")
+            updated_dt = datetime.fromisoformat(updated_str)
+            if updated_dt.tzinfo is None:
+                updated_dt = updated_dt.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) - updated_dt > timedelta(minutes=10):
+                status = "offline"
+        except Exception:
+            pass
+
+    return {
+        "device_serial": row["device_serial"],
+        "stream_url": row["stream_url"],
+        "status": status,
+        "last_updated": row["last_updated"]
+    }
