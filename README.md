@@ -12,22 +12,17 @@ This repository contains the backend and machine learning infrastructure for the
 
 ---
 
-## 🌾 Supported Pest Classes (12 Active Classes)
-The system supports classification and detection for 12 rice pest species:
+## 🌾 Supported Pest Classes (9 Active Classes)
+The system supports classification and detection for 9 rice pest species:
 1. **Army Worm** (`army_worm`)
-2. **Asiatic Rice Borer** (`asiatic_rice_borer`)
+2. **Brown Plant Hopper** (`brown_plant_hopper`)
 3. **Golden Apple Snail** (`golden_apple_snail`)
-4. **Paddy Stem Maggot** (`paddy_stem_maggot`)
+4. **Rice Black Bug** (`rice_black_bug`)
 5. **Rice Bugs** (`rice_bugs`)
-6. **Rice Gall Midge** (`rice_gall_midge`)
-7. **Rice Leaf Caterpillar** (`rice_leaf_caterpillar`)
-8. **Rice Leaf Hopper** (`rice_leaf_hopper`)
-9. **Rice Leaf Roller** (`rice_leaf_roller`)
-10. **Rice Water Weevil** (`rice_water_weevil`)
-11. **Thrips** (`thrips`)
-12. **Yellow Rice Borer** (`yellow_rice_borer`)
-
-*(Note: `brown_plant_hopper`, `rice_shell_pest`, and `white_backed_plant_hopper` are filtered/excluded from active detections.)*
+6. **Rice Leaf Caterpillar** (`rice_leaf_caterpillar`)
+7. **Rice Leaf Hopper** (`rice_leaf_hopper`)
+8. **Rice Leaf Roller** (`rice_leaf_roller`)
+9. **Rice Stem Borer** (`rice_stem_borer`)
 
 ---
 
@@ -44,7 +39,7 @@ The model was trained on Google Colab using GPU acceleration for fast training a
    * Used **MobileNetV3**, pre-trained on ImageNet for lightweight and low-latency inference on mobile & edge IoT devices.
    * Optimized with Adam optimizer and learning rate scheduling (`StepLR`).
 4. **ONNX Export:**
-   * Exported to a self-contained ONNX model (`rice_pest_model.onnx`) with dynamic batching support `[batch_size, 3, 224, 224] -> [batch_size, 14]`, eliminating the heavy PyTorch runtime dependency in production.
+   * Exported to a self-contained ONNX model (`rice_pest_model.onnx`) with dynamic batching support `[batch_size, 3, 224, 224] -> [batch_size, 9]`, eliminating the heavy PyTorch runtime dependency in production.
 
 ---
 

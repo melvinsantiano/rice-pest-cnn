@@ -83,17 +83,14 @@ session = ort.InferenceSession(str(BASE_DIR / "rice_pest_model.onnx"))
 
 CLASS_NAMES = {
     0: "Army Worm",
-    1: "Asiatic Rice Borer",
+    1: "Brown Plant Hopper",
     2: "Golden Apple Snail",
-    3: "Paddy Stem Maggot",
+    3: "Rice Black Bug",
     4: "Rice Bugs",
-    5: "Rice Gall Midge",
-    6: "Rice Leaf Caterpillar",
-    7: "Rice Leaf Hopper",
-    8: "Rice Leaf Roller",
-    9: "Rice Water Weevil",
-    10: "Thrips",
-    11: "Yellow Rice Borer"
+    5: "Rice Leaf Caterpillar",
+    6: "Rice Leaf Hopper",
+    7: "Rice Leaf Roller",
+    8: "Rice Stem Borer"
 }
 
 CONFIDENCE_THRESHOLD = 50.0
