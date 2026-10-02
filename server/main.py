@@ -85,12 +85,12 @@ CLASS_NAMES = {
     0: "Army Worm",
     1: "Brown Plant Hopper",
     2: "Golden Apple Snail",
-    3: "No Pest",
-    4: "Paddy Stem Maggot",
-    5: "Rice Black Bug",
-    6: "Rice Bugs",
-    7: "Rice Leaf Caterpillar",
-    8: "Rice Leaf Hopper",
+    3: "Green Leafhopper",
+    4: "No Pest",
+    5: "Paddy Stem Maggot",
+    6: "Rice Black Bug",
+    7: "Rice Bugs",
+    8: "Rice Leaf Caterpillar",
     9: "Rice Stem Borer"
 }
 

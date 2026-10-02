@@ -55,12 +55,12 @@ The model classifies inputs into **10 target classes** (9 major rice pests + 1 n
 | **0** | Army Worm | `army_worm` | Leaf & foliage feeder |
 | **1** | Brown Plant Hopper | `brown_plant_hopper` | Phloem sap feeder / hopperburn vector |
 | **2** | Golden Apple Snail | `golden_apple_snail` | Stem & young seedling pest |
-| **3** | **No Pest** | `no_pest` | **Negative fallback** class (foliage, soil, weeds, noise) |
-| **4** | Paddy Stem Maggot | `paddy_stem_maggot` | Larval stem and shoot borer |
-| **5** | Rice Black Bug | `rice_black_bug` | Sap-sucking tillering/panicle pest |
-| **6** | Rice Bugs | `rice_bugs` | Grain-filling stage pest |
-| **7** | Rice Leaf Caterpillar | `rice_leaf_caterpillar` | Defoliator |
-| **8** | Rice Leaf Hopper | `rice_leaf_hopper` | Green leafhopper / tungro virus vector |
+| **3** | Green Leafhopper | `green_leafhopper` | Green leafhopper / tungro virus vector |
+| **4** | **No Pest** | `no_pest` | **Negative fallback** class (foliage, soil, weeds, noise) |
+| **5** | Paddy Stem Maggot | `paddy_stem_maggot` | Larval stem and shoot borer |
+| **6** | Rice Black Bug | `rice_black_bug` | Sap-sucking tillering/panicle pest |
+| **7** | Rice Bugs | `rice_bugs` | Grain-filling stage pest |
+| **8** | Rice Leaf Caterpillar | `rice_leaf_caterpillar` | Defoliator |
 | **9** | Rice Stem Borer | `rice_stem_borer` | Deadheart & whitehead symptom causer |
 
 > ⚠️ **Important:** In `server/main.py`, class indices strictly follow standard PyTorch `ImageFolder` **alphabetical sorting** of dataset folder names.
@@ -114,12 +114,12 @@ Content-Type: multipart/form-data
     "Army Worm": 0.12,
     "Brown Plant Hopper": 1.05,
     "Golden Apple Snail": 0.02,
+    "Green Leafhopper": 0.40,
     "No Pest": 2.10,
     "Paddy Stem Maggot": 0.45,
     "Rice Black Bug": 94.21,
     "Rice Bugs": 0.85,
     "Rice Leaf Caterpillar": 0.30,
-    "Rice Leaf Hopper": 0.40,
     "Rice Stem Borer": 0.50
   }
 }
