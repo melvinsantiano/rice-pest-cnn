@@ -85,12 +85,13 @@ CLASS_NAMES = {
     0: "Army Worm",
     1: "Brown Plant Hopper",
     2: "Golden Apple Snail",
-    3: "Rice Black Bug",
-    4: "Rice Bugs",
-    5: "Rice Leaf Caterpillar",
-    6: "Rice Leaf Hopper",
-    7: "Rice Leaf Roller",
-    8: "Rice Stem Borer"
+    3: "No Pest",
+    4: "Paddy Stem Maggot",
+    5: "Rice Black Bug",
+    6: "Rice Bugs",
+    7: "Rice Leaf Caterpillar",
+    8: "Rice Leaf Hopper",
+    9: "Rice Stem Borer"
 }
 
 CONFIDENCE_THRESHOLD = 50.0
@@ -127,7 +128,7 @@ async def analyze(file: UploadFile = File(...)):
     confidence = float(probs[pred_idx]) * 100
 
     pest_name = CLASS_NAMES[pred_idx]
-    if confidence < CONFIDENCE_THRESHOLD:
+    if confidence < CONFIDENCE_THRESHOLD or pest_name == "No Pest":
         pest_name = "No Pest Detected"
 
     all_scores = {
@@ -141,7 +142,7 @@ async def analyze(file: UploadFile = File(...)):
         "all_scores": all_scores
     }
 
-# ── 2. ESP32 Raw Upload Endpoint ──
+# ── 2. Raspberry Pi 4 Model B Raw Upload Endpoint ──
 @app.post("/predict")
 async def predict(request: Request):
     # Read raw binary body bytes
@@ -164,12 +165,12 @@ async def predict(request: Request):
     confidence = float(probs[pred_idx]) * 100
     pest_name = CLASS_NAMES[pred_idx]
 
-    # If confidence is below threshold, discard the image and return early
-    if confidence < CONFIDENCE_THRESHOLD:
+    # If confidence is below threshold or classified as No Pest, discard the image
+    if confidence < CONFIDENCE_THRESHOLD or pest_name == "No Pest":
         return {
             "status": "discarded",
-            "message": f"Confidence below threshold ({CONFIDENCE_THRESHOLD}%). Image discarded.",
-            "pest": pest_name,
+            "message": f"No pest detected. Image discarded.",
+            "pest": "No Pest Detected",
             "confidence": round(confidence, 2)
         }
 
