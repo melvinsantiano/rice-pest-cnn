@@ -128,7 +128,7 @@ async def analyze(file: UploadFile = File(...)):
     confidence = float(probs[pred_idx]) * 100
 
     pest_name = CLASS_NAMES[pred_idx]
-    if confidence < CONFIDENCE_THRESHOLD or pest_name == "No Pest":
+    if confidence < CONFIDENCE_THRESHOLD or pest_name in ("No Pest", "Paddy Stem Maggot"):
         pest_name = "No Pest Detected"
 
     all_scores = {
@@ -165,8 +165,8 @@ async def predict(request: Request):
     confidence = float(probs[pred_idx]) * 100
     pest_name = CLASS_NAMES[pred_idx]
 
-    # If confidence is below threshold or classified as No Pest, discard the image
-    if confidence < CONFIDENCE_THRESHOLD or pest_name == "No Pest":
+    # If confidence is below threshold or classified as No Pest / Paddy Stem Maggot, discard the image
+    if confidence < CONFIDENCE_THRESHOLD or pest_name in ("No Pest", "Paddy Stem Maggot"):
         return {
             "status": "discarded",
             "message": f"No pest detected. Image discarded.",
