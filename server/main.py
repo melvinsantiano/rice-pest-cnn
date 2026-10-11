@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, File, UploadFile, Request, HTTPException, BackgroundTasks
+﻿from fastapi import FastAPI, File, UploadFile, Form, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import onnxruntime as ort
@@ -33,7 +33,8 @@ async def forward_detection_to_admin(
     confidence: float,
     serial_number: str,
     detected_at: str,
-    source: str = "auto"
+    source: str = "auto",
+    barangay: Optional[str] = None
 ):
     """
     Forward a pest detection to the Admin Server.
@@ -53,6 +54,8 @@ async def forward_detection_to_admin(
         "serial_number": serial_number,
         "source": source,
     }
+    if barangay:
+        payload["barangay"] = barangay
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
@@ -153,8 +156,20 @@ def root():
 
 # 📡 1. Manual Scan Upload Endpoint (from Mobile UI) 📡
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
-    image_bytes = await file.read()
+async def analyze(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None),
+    device_id: Optional[str] = Form(None),
+    zone: Optional[str] = Form(None),
+    barangay: Optional[str] = Form(None)
+):
+    upload_file = file or image
+    if not upload_file:
+        raise HTTPException(status_code=400, detail="No image file provided")
+
+    image_bytes = await upload_file.read()
     input_tensor = preprocess(image_bytes)
 
     inputs = {session.get_inputs()[0].name: input_tensor}
@@ -175,6 +190,15 @@ async def analyze(file: UploadFile = File(...)):
         CLASS_NAMES[i]: round(float(probs[i]) * 100, 2)
         for i in range(len(CLASS_NAMES))
     }
+
+    # Forward manual detection to Admin Server if a pest is detected
+    if pest_name != "No Pest Detected":
+        timestamp_str = datetime.now(timezone.utc).isoformat()
+        serial = device_id or request.headers.get("X-Device-Serial", "MOBILE_APP")
+        background_tasks.add_task(
+            _forward_detection_sync,
+            pest_name, confidence, serial, timestamp_str, "manual", barangay
+        )
 
     return {
         "pest": pest_name,
@@ -261,9 +285,9 @@ async def predict(request: Request, background_tasks: BackgroundTasks):
         "confidence": round(confidence, 2)
     }
 
-def _forward_detection_sync(pest_name, confidence, serial, detected_at, source):
+def _forward_detection_sync(pest_name, confidence, serial, detected_at, source="auto", barangay=None):
     """Synchronous wrapper that runs the async forwarder in its own event loop."""
-    asyncio.run(forward_detection_to_admin(pest_name, confidence, serial, detected_at, source))
+    asyncio.run(forward_detection_to_admin(pest_name, confidence, serial, detected_at, source, barangay))
 
 # 📡 3. Mobile Sync Endpoint 📡
 @app.get("/detections/{serial}")
@@ -427,3 +451,4 @@ async def clear_stream_request(serial: str):
     conn.commit()
     conn.close()
     return {"status": "cleared"}
+
