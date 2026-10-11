@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Request, HTTPException, BackgroundTasks
+﻿from fastapi import FastAPI, File, UploadFile, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import onnxruntime as ort
@@ -10,10 +10,15 @@ import sqlite3
 import json
 import uuid
 import asyncio
+import httpx
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from pathlib import Path
 from pydantic import BaseModel
+
+# ── Admin Server Forwarding Config ──
+ADMIN_SERVER_URL = os.environ.get("ADMIN_SERVER_URL", "http://localhost:3000")
+ADMIN_API_KEY    = os.environ.get("ADMIN_API_KEY", "ricescan-render-api-key-dev")
 
 async def delete_file_later(filepath: str, delay: int = 30):
     await asyncio.sleep(delay)
@@ -22,6 +27,41 @@ async def delete_file_later(filepath: str, delay: int = 30):
             os.remove(filepath)
     except OSError:
         pass
+
+async def forward_detection_to_admin(
+    pest_name: str,
+    confidence: float,
+    serial_number: str,
+    detected_at: str,
+    source: str = "auto"
+):
+    """
+    Forward a pest detection to the Admin Server.
+    Fires-and-forgets so the /predict response is not delayed.
+    Logs errors but never raises — the CNN server is the source of truth,
+    the admin dashboard is best-effort.
+    """
+    url = f"{ADMIN_SERVER_URL}/api/detections"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": ADMIN_API_KEY,
+    }
+    payload = {
+        "pest_name": pest_name,
+        "confidence": round(confidence, 2),
+        "detected_at": detected_at,
+        "serial_number": serial_number,
+        "source": source,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 201:
+                print(f"[ADMIN] Forwarded detection → {pest_name} ({confidence:.1f}%) for {serial_number}")
+            else:
+                print(f"[ADMIN] Forward failed {resp.status_code}: {resp.text}")
+    except Exception as e:
+        print(f"[ADMIN] Forward error (non-fatal): {e}")
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -111,7 +151,7 @@ def preprocess(image_bytes):
 def root():
     return {"status": "online", "model": "rice_pest_mobilenetv3"}
 
-# ── 1. Manual Scan Upload Endpoint (from Mobile UI) ──
+# 📡 1. Manual Scan Upload Endpoint (from Mobile UI) 📡
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
     image_bytes = await file.read()
@@ -142,9 +182,9 @@ async def analyze(file: UploadFile = File(...)):
         "all_scores": all_scores
     }
 
-# ── 2. Raspberry Pi 4 Model B Raw Upload Endpoint ──
+# 📡 2. Raspberry Pi 4 Model B Raw Upload Endpoint 📡
 @app.post("/predict")
-async def predict(request: Request):
+async def predict(request: Request, background_tasks: BackgroundTasks):
     # Read raw binary body bytes
     image_bytes = await request.body()
     if not image_bytes:
@@ -175,7 +215,7 @@ async def predict(request: Request):
         }
 
     # Save physical file to static server directory
-    timestamp_str = datetime.utcnow().isoformat()
+    timestamp_str = datetime.now(timezone.utc).isoformat()
     filename = f"{device_serial}_{uuid.uuid4().hex}.jpg"
     file_path = DETECTIONS_DIR / filename
     with open(file_path, "wb") as f:
@@ -208,6 +248,12 @@ async def predict(request: Request):
     conn.commit()
     conn.close()
 
+    # ── Forward detection to the Admin Server (fire-and-forget) ──
+    background_tasks.add_task(
+        _forward_detection_sync,
+        pest_name, confidence, device_serial, timestamp_str, "auto"
+    )
+
     return {
         "status": "success",
         "id": record_id,
@@ -215,7 +261,11 @@ async def predict(request: Request):
         "confidence": round(confidence, 2)
     }
 
-# ── 3. Mobile Sync Endpoint ──
+def _forward_detection_sync(pest_name, confidence, serial, detected_at, source):
+    """Synchronous wrapper that runs the async forwarder in its own event loop."""
+    asyncio.run(forward_detection_to_admin(pest_name, confidence, serial, detected_at, source))
+
+# 📡 3. Mobile Sync Endpoint 📡
 @app.get("/detections/{serial}")
 async def get_detections(serial: str, background_tasks: BackgroundTasks):
     conn = sqlite3.connect(DB_PATH)
@@ -255,7 +305,7 @@ async def get_detections(serial: str, background_tasks: BackgroundTasks):
     conn.close()
     return results
 
-# ── 4. Device Live Stream Registration Endpoints ──
+# 📡 4. Device Live Stream Registration Endpoints 📡
 class StreamUrlPayload(BaseModel):
     stream_url: Optional[str] = None
     status: Optional[str] = "online"
@@ -322,7 +372,7 @@ async def get_stream_url(serial: str):
         "last_updated": row["last_updated"]
     }
 
-# ── 5. On-Demand Stream Request Endpoints ──
+# 📡 5. On-Demand Stream Request Endpoints 📡
 @app.post("/devices/{serial}/request-stream")
 async def request_stream(serial: str):
     now = datetime.now(timezone.utc).isoformat()
